@@ -10,9 +10,11 @@ TARGET_DIR="${AETHER_DIR:-$HOME/aether-agent-platform}"
 
 # Remove earlier broken Homebrew path lines (if any)
 if [[ -f "$HOME/.zprofile" ]]; then
-  sed -i.bak '/opt\/homebrew\/bin\/brew/d' "$HOME/.zprofile" 2>/dev/null || true
-  rm -f "$HOME/.zprofile.bak"
+  grep -v '/opt/homebrew/bin/brew' "$HOME/.zprofile" >"$HOME/.zprofile.aether.tmp" || true
+  mv "$HOME/.zprofile.aether.tmp" "$HOME/.zprofile"
 fi
+# Prefer the AWS bootstrap if you need brew+docker:
+#   curl -fsSL https://raw.githubusercontent.com/torksabig/aether-agents/main/scripts/mac-aws-bootstrap.sh | bash
 
 echo "==> Checking Python 3…"
 if ! command -v python3 >/dev/null 2>&1; then

@@ -1,0 +1,28 @@
+# Local stand-in for the AWS-hosted agent services.
+# Production: App Runner (chat) + EventBridge → ECS task (worker).
+services:
+  chat:
+    build: .
+    ports:
+      - "3847:3847"
+    env_file:
+      - .env
+    command: ["aether-web"]
+
+  worker:
+    build: .
+    env_file:
+      - .env
+    environment:
+      AGENT_BATCH_LIMIT: "10"
+    # One-shot queue drain (mirror of .github/workflows/agents.yml)
+    command:
+      [
+        "python",
+        "-m",
+        "aether_agents.runner",
+        "--batch-limit",
+        "10",
+      ]
+    profiles:
+      - worker
