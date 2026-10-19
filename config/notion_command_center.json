@@ -44,7 +44,12 @@
     "NOTION_RESEARCH_DATA_SOURCE_ID": "2c440fd7-21a5-4102-81c5-008ffe602cc7",
     "NOTION_PROJECTS_DATA_SOURCE_ID": "4945228c-3c75-413b-a2ea-85c39d860d06",
     "NOTION_FUNDING_DATA_SOURCE_ID": "fb8c3e32-edbe-4e6c-9db8-c8129e6e4cc0",
-    "NOTION_TASKS_DATA_SOURCE_ID": "c7b4e9e4-d81a-442c-90ae-f49d8a8372c0"
+    "NOTION_TASKS_DATA_SOURCE_ID": "c7b4e9e4-d81a-442c-90ae-f49d8a8372c0",
+    "NOTION_OUTPUTS_PARENT_PAGE_ID": ""
+  },
+  "telegram_outputs": {
+    "parent_page_title": "Telegram Agent Outputs",
+    "note": "Auto-created under Command Center on first Telegram run if NOTION_OUTPUTS_PARENT_PAGE_ID is empty."
   },
   "related_existing_systems": {
     "modamer_outreach_control": "https://app.notion.com/p/3cdb22873e66812d8e7ef5a13d9ce70d",
