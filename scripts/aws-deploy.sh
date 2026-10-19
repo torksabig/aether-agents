@@ -136,6 +136,14 @@ ensure_express_roles() {
   secret_arn="$(aws secretsmanager describe-secret \
     --secret-id "$SECRET_NAME" --region "$AWS_REGION" --query ARN --output text)"
 
+  # Required once per account — Express Mode / ECS cannot start without it
+  if ! aws iam get-role --role-name AWSServiceRoleForECS >/dev/null 2>&1; then
+    echo "==> IAM service-linked role AWSServiceRoleForECS"
+    aws iam create-service-linked-role --aws-service-name ecs.amazonaws.com >/dev/null \
+      || echo "    (role create returned non-zero — continuing if it already exists)"
+    sleep 10
+  fi
+
   if ! aws iam get-role --role-name "$EXEC_ROLE" >/dev/null 2>&1; then
     echo "==> IAM $EXEC_ROLE"
     aws iam create-role --role-name "$EXEC_ROLE" \
@@ -248,17 +256,39 @@ PY
            --execution-role-arn "$EXEC_ARN" >/dev/null
   else
     echo "==> ECS Express: creating $SERVICE_NAME (ALB + HTTPS URL)…"
-    # Try JSON container first; fall back to shorthand if CLI rejects structure
+    # Shorthand container + secrets file (CLI-friendly)
+    local secrets_file
+    secrets_file="$(mktemp)"
+    echo "$secrets_json" >"$secrets_file"
+
+    # Build primary-container with secrets via JSON file for --cli-input-json
+    python3 - "$ECR_URI" "$PORT" "$EXEC_ARN" "$INFRA_ARN" "$SERVICE_NAME" "$secrets_file" <<'PY' >/tmp/aether-express-input.json
+import json, sys
+image, port, exec_arn, infra_arn, name, secrets_path = sys.argv[1:7]
+secrets = json.loads(open(secrets_path).read())
+doc = {
+    "serviceName": name,
+    "primaryContainer": {
+        "image": image,
+        "containerPort": int(port),
+        "secrets": secrets,
+    },
+    "executionRoleArn": exec_arn,
+    "infrastructureRoleArn": infra_arn,
+    "cpu": "1 vCPU",
+    "memory": "2 GB",
+}
+json.dump(doc, sys.stdout)
+PY
+    rm -f "$secrets_file"
+
     if ! aws ecs create-express-gateway-service \
       --region "$AWS_REGION" \
-      --service-name "$SERVICE_NAME" \
-      --primary-container "$container_json" \
-      --execution-role-arn "$EXEC_ARN" \
-      --infrastructure-role-arn "$INFRA_ARN" \
-      --cpu "1 vCPU" \
-      --memory "2 GB" >/tmp/aether-express-create.json 2>/tmp/aether-express-create.err; then
-      echo "    JSON container form failed; retrying shorthand + env from secret inject…"
-      # Shorthand without nested secrets — inject via separate register if needed
+      --cli-input-json file:///tmp/aether-express-input.json \
+      >/tmp/aether-express-create.json 2>/tmp/aether-express-create.err; then
+      echo "    create with secrets failed:"
+      cat /tmp/aether-express-create.err >&2 || true
+      echo "    retrying without secrets (you can wire env in Console)…"
       aws ecs create-express-gateway-service \
         --region "$AWS_REGION" \
         --service-name "$SERVICE_NAME" \
@@ -268,8 +298,6 @@ PY
         --cpu "1 vCPU" \
         --memory "2 GB" >/tmp/aether-express-create.json
       echo "    WARN: created without Secrets Manager injection."
-      echo "    Set Notion env on the service in Console if /api/status shows notion_ready:false"
-      cat /tmp/aether-express-create.err >&2 || true
     fi
   fi
 
