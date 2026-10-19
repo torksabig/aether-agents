@@ -1,0 +1,20 @@
+{
+  "label": "conflicting evidence case",
+  "opportunity_id": "co_balticasset.example",
+  "company_name": "Baltic Asset Management",
+  "domain": "balticasset.example",
+  "source_url": "https://balticasset.example/portfolio",
+  "contacts": ["ops@balticasset.example"],
+  "sources": [
+    {
+      "url": "https://balticasset.example/news/a",
+      "text": "Data access confirmed for selected pilot buildings in Tallinn.",
+      "confidence": 0.7
+    },
+    {
+      "url": "https://balticasset.example/news/b",
+      "text": "No data access will be granted for external analytics vendors.",
+      "confidence": 0.7
+    }
+  ]
+}

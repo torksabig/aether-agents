@@ -1,0 +1,25 @@
+{
+  "label": "feasibility gap data access",
+  "opportunity_id": "co_helsinkicampus.example",
+  "company_name": "Helsinki Campus Facilities",
+  "domain": "helsinkicampus.example",
+  "source_url": "https://helsinkicampus.example/energy",
+  "contacts": ["facilities@helsinkicampus.example"],
+  "sources": [
+    {
+      "url": "https://helsinkicampus.example/energy",
+      "text": "Campus energy systems include central BMS and building-level meters.",
+      "confidence": 0.75
+    }
+  ],
+  "project": {
+    "project": "Campus Meter Analytics",
+    "company_id": "co_helsinkicampus.example",
+    "use_case": "campus HVAC meter analytics",
+    "technical_status": "draft",
+    "data_access": "unconfirmed",
+    "region": "finland",
+    "partners": [],
+    "co_financing_capacity": "unknown"
+  }
+}
