@@ -118,11 +118,16 @@ push_image() {
     | docker login --username AWS --password-stdin \
       "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
 
-  # Fargate defaults to linux/amd64 — must set platform on Apple Silicon Macs
-  docker build --platform linux/amd64 -t "${REPO}:${IMAGE_TAG}" .
-  docker tag "${REPO}:${IMAGE_TAG}" "$ECR_URI"
-  docker push "$ECR_URI"
-  echo "    pushed $ECR_URI (linux/amd64)"
+  # Fargate needs a plain linux/amd64 image (no attestation index from Docker Desktop)
+  export BUILDX_NO_DEFAULT_ATTESTATIONS=1
+  docker buildx build \
+    --platform linux/amd64 \
+    --provenance=false \
+    --sbom=false \
+    -t "$ECR_URI" \
+    --push \
+    .
+  echo "    pushed $ECR_URI (linux/amd64, no attestations)"
 }
 
 ensure_ecs_roles() {
