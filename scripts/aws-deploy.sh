@@ -7,14 +7,15 @@
 #   3. App Runner service      aether-agents-chat  (port 3847)
 #
 # Prerequisites (Mac):
-#   brew install awscli docker
-#   aws configure   # region eu-north-1 recommended
-#   .env filled next to this repo (NOTION_TOKEN + data source IDs)
+#   eval "$(/opt/homebrew/bin/brew shellenv)"   # if brew not found
+#   brew install awscli && brew install --cask docker
+#   aws configure   # Access Key ID starts with AKIA… (not account number)
+#   .env filled (NOTION_TOKEN + data source IDs)
 #
-# Usage:
-#   ./scripts/aws-deploy.sh              # full path: secret + image + App Runner
-#   ./scripts/aws-deploy.sh --image-only # rebuild/push image only
-#   ./scripts/aws-deploy.sh --secret-only
+# Usage (prefer bash if permission denied):
+#   bash scripts/aws-deploy.sh
+#   bash scripts/aws-deploy.sh --image-only
+#   bash scripts/aws-deploy.sh --secret-only
 #
 set -euo pipefail
 
