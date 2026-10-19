@@ -1,0 +1,53 @@
+{
+  "command_center_page_id": "3feb2287-3e66-818f-983a-de85647877b4",
+  "command_center_url": "https://app.notion.com/p/3feb22873e66818f983ade85647877b4",
+  "workspace": "Aether Applied",
+  "created_at": "2026-10-19",
+  "data_sources": {
+    "companies": {
+      "title": "Companies & Leads",
+      "database_url": "https://app.notion.com/p/7d1254c051e849418b885b4f167bbf32",
+      "data_source_id": "d3544976-9f52-4d91-bc6b-9af680bd7745"
+    },
+    "research": {
+      "title": "Research & Evidence",
+      "database_url": "https://app.notion.com/p/36605640e9504d7dae8cf3038266b469",
+      "data_source_id": "2c440fd7-21a5-4102-81c5-008ffe602cc7"
+    },
+    "projects": {
+      "title": "Projects & Pilots",
+      "database_url": "https://app.notion.com/p/3af950d63e0147228f799ce0a92752e4",
+      "data_source_id": "4945228c-3c75-413b-a2ea-85c39d860d06"
+    },
+    "funding": {
+      "title": "Funding & Partnerships",
+      "database_url": "https://app.notion.com/p/13f1aee3f724438d827e90a946925d87",
+      "data_source_id": "fb8c3e32-edbe-4e6c-9db8-c8129e6e4cc0"
+    },
+    "tasks": {
+      "title": "Agent Tasks & Runs",
+      "database_url": "https://app.notion.com/p/57aa1e33ac4d49a2a94d34437846062b",
+      "data_source_id": "c7b4e9e4-d81a-442c-90ae-f49d8a8372c0"
+    }
+  },
+  "linked_views": [
+    "New Leads",
+    "Needs Qualification",
+    "Technical Review",
+    "Funding Matches",
+    "Human Approvals",
+    "Failed Agent Runs"
+  ],
+  "env_mapping": {
+    "NOTION_COMMAND_CENTER_PAGE_ID": "3feb2287-3e66-818f-983a-de85647877b4",
+    "NOTION_COMPANIES_DATA_SOURCE_ID": "d3544976-9f52-4d91-bc6b-9af680bd7745",
+    "NOTION_RESEARCH_DATA_SOURCE_ID": "2c440fd7-21a5-4102-81c5-008ffe602cc7",
+    "NOTION_PROJECTS_DATA_SOURCE_ID": "4945228c-3c75-413b-a2ea-85c39d860d06",
+    "NOTION_FUNDING_DATA_SOURCE_ID": "fb8c3e32-edbe-4e6c-9db8-c8129e6e4cc0",
+    "NOTION_TASKS_DATA_SOURCE_ID": "c7b4e9e4-d81a-442c-90ae-f49d8a8372c0"
+  },
+  "related_existing_systems": {
+    "modamer_outreach_control": "https://app.notion.com/p/3cdb22873e66812d8e7ef5a13d9ce70d",
+    "note": "Modamer uses Jobs/Leads/Runs with scripts/notion_worker.py. Wire via AETHER_LEAD_EXTRACTOR / AETHER_RESEARCH_EXTRACTOR plugins rather than rewriting."
+  }
+}
