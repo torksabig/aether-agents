@@ -1,4 +1,4 @@
-"""Hosted browser chat for Aether agents.
+"""Hosted browser chat + Telegram front door for Aether agents.
 
 Run:
   aether-web
@@ -8,7 +8,10 @@ Run:
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
+
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -16,6 +19,7 @@ from pydantic import BaseModel, Field
 
 from aether_agents.chat import AetherChat
 from aether_agents.config import get_settings
+from aether_agents.telegram_bot import TelegramPoller
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
@@ -35,6 +39,7 @@ class StatusResponse(BaseModel):
     dry_run: bool
     queued: int | None
     brand: str = "Aether Applied"
+    telegram_ready: bool = False
 
 
 class AgentRunRequest(BaseModel):
@@ -65,12 +70,18 @@ _AGENT_ROUTE_COMMANDS: dict[str, str] = {
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="Aether Agents Chat", version="0.1.0")
-    chat = AetherChat(get_settings())
+    settings = get_settings()
+    chat = AetherChat(settings)
+    poller = TelegramPoller(settings)
 
-    @app.on_event("shutdown")
-    def _shutdown() -> None:
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+        poller.start()
+        yield
+        poller.stop()
         chat.close()
+
+    app = FastAPI(title="Aether Agents Chat", version="0.1.0", lifespan=lifespan)
 
     @app.get("/api/health")
     def health() -> dict[str, str]:
@@ -82,7 +93,6 @@ def create_app() -> FastAPI:
         if chat.notion_ready:
             try:
                 reply = chat.handle("status")
-                # status text includes "Queued tasks: N"
                 for line in reply.text.splitlines():
                     if "Queued tasks:" in line:
                         try:
@@ -95,6 +105,7 @@ def create_app() -> FastAPI:
             notion_ready=chat.notion_ready,
             dry_run=bool(chat.settings.agent_dry_run),
             queued=queued,
+            telegram_ready=settings.telegram_ready(),
         )
 
     @app.post("/api/chat", response_model=ChatResponse)
@@ -102,7 +113,6 @@ def create_app() -> FastAPI:
         message = body.message.strip()
         if not message:
             raise HTTPException(status_code=400, detail="Empty message")
-        # Agent + Notion calls are sync/blocking — run off the event loop
         reply = await asyncio.to_thread(chat.handle, message)
         return ChatResponse(
             reply=reply.text,
@@ -117,7 +127,10 @@ def create_app() -> FastAPI:
         if key not in _AGENT_ROUTE_COMMANDS:
             raise HTTPException(
                 status_code=404,
-                detail=f"Unknown agent '{agent_key}'. Use: {', '.join(sorted(_AGENT_ROUTE_COMMANDS))}",
+                detail=(
+                    f"Unknown agent '{agent_key}'. "
+                    f"Use: {', '.join(sorted(_AGENT_ROUTE_COMMANDS))}"
+                ),
             )
         verb = _AGENT_ROUTE_COMMANDS[key]
         parts = [verb, body.target.strip()]
@@ -127,7 +140,6 @@ def create_app() -> FastAPI:
             parts.append(body.source_url.strip())
         message = " ".join(parts)
         reply = await asyncio.to_thread(chat.handle, message)
-        # Drain one Queued batch so AWS execution actually runs after enqueue
         if reply.ok and chat.notion_ready:
             process_reply = await asyncio.to_thread(chat.handle, "process")
             text = f"{reply.text}\n\n{process_reply.text}"
