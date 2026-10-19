@@ -1,10 +1,14 @@
 # Aether Applied — Agent Platform
 
-Coordinated multi-agent opportunity pipeline for Aether Applied. Notion is the command center and knowledge base; GitHub Actions runs scheduled Python workflows. The only variable cost is LLM tokens.
+Coordinated multi-agent opportunity pipeline for Aether Applied. Notion is the command center and knowledge base; GitHub Actions / AWS ECS run scheduled Python workers. The only variable cost is LLM tokens.
 
 **Pipeline:** Extract → Verify → Qualify → Assess Feasibility → Match Funding → Human Review → Next Action
 
 Agents never treat another agent’s unsupported conclusion as verified evidence. Original source URLs are retained throughout.
+
+**Purpose (short):** [`docs/PURPOSE.md`](docs/PURPOSE.md) · **Notion Agents Library setup:** [`docs/notion-agents-library.md`](docs/notion-agents-library.md)
+
+> Notion’s [Agents Library](https://app.notion.com/library/agents) Custom Agents must be created in the Notion UI (API cannot create them). Use the how-to page under Command Center and paste the prompts there.
 
 ## Repository layout
 
