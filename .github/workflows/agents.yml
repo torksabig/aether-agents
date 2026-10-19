@@ -1,0 +1,38 @@
+name: Aether Agent Pipeline
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 7,11,15,19 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aether-agent-pipeline
+  cancel-in-progress: false
+
+jobs:
+  agents:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      NOTION_TASKS_DATA_SOURCE_ID: ${{ secrets.NOTION_TASKS_DATA_SOURCE_ID }}
+      NOTION_COMPANIES_DATA_SOURCE_ID: ${{ secrets.NOTION_COMPANIES_DATA_SOURCE_ID }}
+      NOTION_RESEARCH_DATA_SOURCE_ID: ${{ secrets.NOTION_RESEARCH_DATA_SOURCE_ID }}
+      NOTION_PROJECTS_DATA_SOURCE_ID: ${{ secrets.NOTION_PROJECTS_DATA_SOURCE_ID }}
+      NOTION_FUNDING_DATA_SOURCE_ID: ${{ secrets.NOTION_FUNDING_DATA_SOURCE_ID }}
+      AGENT_BATCH_LIMIT: "10"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install -e .
+      - name: Process queued tasks
+        run: >
+          python -m aether_agents.runner
+          --batch-limit 10
