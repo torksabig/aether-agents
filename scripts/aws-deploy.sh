@@ -297,7 +297,7 @@ deploy_ecs_alb_chat() {
   echo "==> Task definition $TASK_FAMILY"
   local env_json
   env_json="$(env_from_secret_json)"
-  echo "    injecting $(python3 -c \"import json,sys; print(len(json.loads(sys.argv[1])))\" \"$env_json\") env keys from Secrets Manager"
+  echo "    injecting $(python3 -c 'import json,sys; print(len(json.loads(sys.argv[1])))' "$env_json") env keys from Secrets Manager"
   # Write container def to a file (avoids shell-escaping secrets)
   python3 - "$ECR_URI" "$PORT" "$TASK_FAMILY" "$AWS_REGION" "$env_json" <<'PY' >/tmp/aether-chat-container.json
 import json, sys
