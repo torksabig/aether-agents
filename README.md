@@ -17,7 +17,45 @@ aether-agent-platform/
 └── .env.example
 ```
 
-## Quick start — chat with the agents
+## Quick start — hosted agent chat (browser)
+
+Agents run on a local web server you can open from any browser on the machine:
+
+```bash
+source .venv/bin/activate   # if needed
+aether-web
+# open http://127.0.0.1:3847
+```
+
+Same commands as the CLI (`status`, `queue`, `process`, `ask …`) — results write to Notion when `NOTION_TOKEN` is set.
+
+### AWS (production power)
+
+**Notion** = queue + review. **AWS** = where Aether agents run. **Cursor Notion agent** = coding helper only (not this pipeline).
+
+If Terminal says `brew: command not found`, install tools + clone first:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/torksabig/aether-agents/main/scripts/mac-aws-bootstrap.sh | bash
+```
+
+Then (exact path — your home folder):
+
+```bash
+cd ~/aether-agent-platform
+open -e .env && aws configure    # NOTION_TOKEN + AWS keys, region eu-north-1
+bash scripts/aws-deploy.sh       # secret → ECR → ECS Express chat
+bash scripts/aws-worker-schedule.sh  # EventBridge → ECS drain Queued
+```
+
+Full how-to: [`docs/aws-deploy-steps.md`](docs/aws-deploy-steps.md) · sketch: [`docs/aws-agent-hosting.md`](docs/aws-agent-hosting.md)
+
+```bash
+docker compose up --build chat          # local stand-in for App Runner
+docker compose --profile worker run --rm worker   # one queue drain
+```
+
+## Quick start — chat with the agents (CLI)
 
 ### macOS (one command)
 
@@ -78,7 +116,7 @@ https://app.notion.com/p/3feb22873e66818f983ade85647877b4
 
 Data source IDs: `config/notion_command_center.json` and `.env.example`.
 
-Create a Notion Internal Integration, share the five databases with it, set `NOTION_TOKEN`, then use `aether` chat.
+Create a Notion **Internal connection** at [app.notion.com/developers/connections](https://app.notion.com/developers/connections) (Workspace Owner + Developer Mode), share the five databases with it, set `NOTION_TOKEN`, then use `aether` chat.
 
 ### Quality gates
 
@@ -142,7 +180,7 @@ Funding eligibility outcomes are only **Eligible**, **Not eligible**, or **Unver
 
 | Secret | Purpose |
 | --- | --- |
-| `NOTION_TOKEN` | Internal integration token |
+| `NOTION_TOKEN` | Internal connection API token ([developers/connections](https://app.notion.com/developers/connections)) |
 | `NOTION_TASKS_DATA_SOURCE_ID` | Agent Tasks & Runs data source |
 | `NOTION_COMPANIES_DATA_SOURCE_ID` | Companies & Leads |
 | `NOTION_RESEARCH_DATA_SOURCE_ID` | Research & Evidence |
@@ -184,6 +222,20 @@ export AETHER_RESEARCH_EXTRACTOR=my_package.research:extract_findings
 ```
 
 Existing Modamer Jobs worker (`scripts/notion_worker.py` under Outreach Control) can keep its pipeline; this platform is the BMS opportunity track. Do not rewrite working extraction logic—wrap it.
+
+## Nordic angel outreach pack
+
+Formatted FI + SE business angel pack (€20–30k / 3–4 weeks):
+
+| File | Use |
+| --- | --- |
+| `docs/Nordic_Business_Angels_FI_SE.docx` | Upload to Drive → Open with Google Docs (best formatting) |
+| `docs/Nordic_Business_Angels_FI_SE.html` | Open in browser → Select all → Paste into an existing Doc |
+| `docs/nordic-angels-direct-contacts.md` | Public emails/phones found + LinkedIn + sources |
+| `docs/nordic-angels-malls-format.txt` | Plain `#1–110` contact lines |
+| `scripts/build_nordic_angels_doc.py` | Rebuild DOCX/HTML from the malls-format list |
+
+**Replace an existing Google Doc:** File → Open → Upload → choose the `.docx`, then copy the new Doc into your target (or File → Make a copy). Paste from the HTML file preserves headings and tables reasonably well.
 
 ## Production checklist
 

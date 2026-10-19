@@ -12,7 +12,7 @@ Three roles. Do not mix them.
 You queue / review in Notion
         │
         ▼
-   AWS App Runner  →  aether-web chat (browser)
+   AWS ECS Express →  aether-web chat (browser)
    AWS EventBridge →  ECS Fargate runner (drain Queued)
         │
         ▼
@@ -45,14 +45,17 @@ aws sts get-caller-identity
 # wait until Docker Desktop is Running (whale icon idle)
 ```
 
-### 1. Chat on AWS (secret + ECR + App Runner)
+### 1. Chat on AWS (secret + ECR + ECS Express)
+
+App Runner is **not** in `eu-north-1` and is closed to new AWS accounts. Deploy uses **ECS Express Mode** (managed ALB + HTTPS URL) in Stockholm.
 
 ```bash
 cd ~/aether-agent-platform
-./scripts/aws-deploy.sh
+git pull
+bash scripts/aws-deploy.sh
 ```
 
-Script prints the App Runner URL. Smoke:
+Script prints the chat URL. Smoke:
 
 ```bash
 curl -s https://YOUR_URL/api/health
@@ -64,8 +67,8 @@ Open that URL in a browser — same chat as local (`queue`, `process`, `ask …`
 Partial runs:
 
 ```bash
-./scripts/aws-deploy.sh --secret-only   # refresh Secrets Manager from .env
-./scripts/aws-deploy.sh --image-only    # rebuild/push image only
+bash scripts/aws-deploy.sh --secret-only   # refresh Secrets Manager from .env
+bash scripts/aws-deploy.sh --image-only    # rebuild/push image only
 ```
 
 ### 2. Queue worker on a schedule (true AWS drain)
@@ -83,7 +86,7 @@ Until this is done, **`.github/workflows/agents.yml`** can keep draining Notion 
 | You do | Where |
 |--------|--------|
 | Add company / set task **Queued** | Notion Command Center |
-| Chat / hit **process** | App Runner URL |
+| Chat / hit **process** | ECS Express chat URL |
 | Auto-drain queue | EventBridge → ECS (or GitHub Actions) |
 | Review results | Notion **Needs Review** |
 | Coding / PR help | Notion Agents → **Cursor** (not AWS) |
@@ -133,14 +136,13 @@ docker push \
 Image default CMD is `aether-web` (port **3847**). Worker overrides command to  
 `python -m aether_agents.runner --batch-limit 10`.
 
-### App Runner (console)
+### ECS Express chat (preferred over App Runner)
 
-1. **App Runner** → Create service → ECR → `aether-agents:latest`
-2. Port **3847**
-3. Wire env from secret `aether/agents/env` (instance role needs `secretsmanager:GetSecretValue`)
-4. Create → open Service URL
+```bash
+bash scripts/aws-deploy.sh   # creates Express Mode service + ALB URL
+```
 
-### EventBridge → ECS (console)
+### EventBridge → ECS worker (console)
 
 1. ECS cluster (Fargate) + task definition: same image, command override above, secrets from Secrets Manager  
 2. EventBridge schedule `cron(23 7,11,15,19 * ? *)` → ECS RunTask  
@@ -152,7 +154,7 @@ Or: `./scripts/aws-worker-schedule.sh`
 ## Verify end-to-end
 
 1. Notion: leave ≥1 task **Queued**
-2. App Runner chat: `process` (or wait for the schedule)
+2. Chat URL: `process` (or wait for the schedule)
 3. Notion: task moves toward Needs Review / Done
 4. `/api/status` still `notion_ready: true`
 
@@ -160,7 +162,7 @@ Or: `./scripts/aws-worker-schedule.sh`
 
 ## Cost & safety
 
-- Light App Runner + tiny Fargate schedule ≈ low tens of USD/month  
+- Light ECS Express (ALB) + tiny Fargate schedule ≈ low tens of USD/month  
 - Never commit `NOTION_TOKEN` — Secrets Manager / GitHub secrets only  
 - Rotate any token that was pasted in chat  
 - OpenRouter optional until Bedrock is wired  
@@ -169,9 +171,11 @@ Or: `./scripts/aws-worker-schedule.sh`
 
 | Symptom | Fix |
 |---------|-----|
-| `notion_ready: false` | Secret not injected; re-run `--secret-only` and update App Runner |
+| `notion_ready: false` | Secret not injected; re-run `--secret-only` / check ECS task env |
 | Worker runs, Notion 404 | Share DBs with integration **TT** again |
-| Image won’t start | Port must be **3847**; check App Runner logs |
+| Image won’t start | Port must be **3847**; check ECS / CloudWatch logs |
+| `IncompleteSignature` / bad key | Re-run `aws configure set …` — never paste commands into the Access Key prompt |
+| App Runner endpoint error | Expected in `eu-north-1` — use updated `aws-deploy.sh` (ECS Express) |
 | No AWS CLI in Cursor Cloud | Run the scripts on your Mac |
 
 Architecture sketch: [`aws-agent-hosting.md`](aws-agent-hosting.md).
