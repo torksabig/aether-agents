@@ -1,0 +1,15 @@
+{
+  "label": "needs more research",
+  "opportunity_id": "co_nordicproperty.example",
+  "company_name": "Nordic Property Group",
+  "domain": "nordicproperty.example",
+  "source_url": "https://nordicproperty.example/sustainability",
+  "contacts": [],
+  "sources": [
+    {
+      "url": "https://nordicproperty.example/sustainability",
+      "text": "We publish an annual sustainability report with energy intensity targets.",
+      "confidence": 0.45
+    }
+  ]
+}
