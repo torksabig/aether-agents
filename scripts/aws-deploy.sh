@@ -175,24 +175,22 @@ ensure_ecs_roles() {
 }
 
 secrets_list_json() {
-  python3 - "$SECRET_ARN" <<'PY'
-import json, sys
-arn = sys.argv[1]
-keys = [
-    "NOTION_TOKEN",
-    "NOTION_TASKS_DATA_SOURCE_ID",
-    "NOTION_COMPANIES_DATA_SOURCE_ID",
-    "NOTION_RESEARCH_DATA_SOURCE_ID",
-    "NOTION_PROJECTS_DATA_SOURCE_ID",
-    "NOTION_FUNDING_DATA_SOURCE_ID",
-    "NOTION_COMMAND_CENTER_PAGE_ID",
-    "OPENROUTER_API_KEY",
-    "OPENROUTER_BASE_URL",
-    "OPENROUTER_MODEL",
-    "AGENT_BATCH_LIMIT",
-    "AGENT_DRY_RUN",
-]
-print(json.dumps([{"name": k, "valueFrom": f"{arn}:{k}::"} for k in keys]))
+  # Only reference keys that actually exist in the secret JSON.
+  # Missing keys → ECS ResourceInitializationError → services-stable hangs forever.
+  python3 - "$SECRET_ARN" "$AWS_REGION" <<'PY'
+import json, sys, subprocess
+arn, region = sys.argv[1], sys.argv[2]
+raw = subprocess.check_output([
+    "aws", "secretsmanager", "get-secret-value",
+    "--secret-id", arn, "--region", region,
+    "--query", "SecretString", "--output", "text",
+], text=True)
+data = json.loads(raw)
+print(json.dumps([
+    {"name": k, "valueFrom": f"{arn}:{k}::"}
+    for k in sorted(data.keys())
+    if data.get(k) not in (None, "")
+]))
 PY
 }
 
@@ -340,9 +338,34 @@ deploy_ecs_alb_chat() {
       --health-check-grace-period-seconds 60 >/dev/null
   fi
 
-  echo "    waiting for service stable (may take 2–3 min)…"
-  aws ecs wait services-stable --region "$AWS_REGION" --cluster "$CLUSTER" --services "$SERVICE_NAME" \
-    || echo "    (wait timed out — check target health; URL may still work soon)"
+  echo "    waiting up to ~3 min for tasks…"
+  # Don't hang forever — poll a few times then print diagnostics
+  ok=0
+  for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
+    running="$(aws ecs describe-services --region "$AWS_REGION" --cluster "$CLUSTER" \
+      --services "$SERVICE_NAME" --query 'services[0].runningCount' --output text 2>/dev/null || echo 0)"
+    healthy="$(aws elbv2 describe-target-health --region "$AWS_REGION" --target-group-arn "$TG_ARN" \
+      --query 'length(TargetHealthDescriptions[?TargetHealth.State==`healthy`])' --output text 2>/dev/null || echo 0)"
+    echo "      try $i: running=$running healthy=$healthy"
+    if [[ "$running" != "0" && "$healthy" != "0" ]]; then
+      ok=1
+      break
+    fi
+    sleep 15
+  done
+
+  if [[ "$ok" != "1" ]]; then
+    echo "    Service not healthy yet. Recent events:"
+    aws ecs describe-services --region "$AWS_REGION" --cluster "$CLUSTER" --services "$SERVICE_NAME" \
+      --query 'services[0].events[:5].[createdAt,message]' --output table || true
+    echo "    Stopped tasks (if any):"
+    aws ecs list-tasks --region "$AWS_REGION" --cluster "$CLUSTER" --service-name "$SERVICE_NAME" \
+      --desired-status STOPPED --query 'taskArns[:2]' --output text | tr '\t' '\n' | while read -r t; do
+      [[ -z "$t" || "$t" == "None" ]] && continue
+      aws ecs describe-tasks --region "$AWS_REGION" --cluster "$CLUSTER" --tasks "$t" \
+        --query 'tasks[0].{stop:stoppedReason,containers:containers[0].reason}' --output json || true
+    done
+  fi
 
   echo
   echo "Chat URL:  http://${ALB_DNS}"
