@@ -118,10 +118,11 @@ push_image() {
     | docker login --username AWS --password-stdin \
       "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
 
-  docker build -t "${REPO}:${IMAGE_TAG}" .
+  # Fargate defaults to linux/amd64 — must set platform on Apple Silicon Macs
+  docker build --platform linux/amd64 -t "${REPO}:${IMAGE_TAG}" .
   docker tag "${REPO}:${IMAGE_TAG}" "$ECR_URI"
   docker push "$ECR_URI"
-  echo "    pushed $ECR_URI"
+  echo "    pushed $ECR_URI (linux/amd64)"
 }
 
 ensure_ecs_roles() {
@@ -297,7 +298,7 @@ deploy_ecs_alb_chat() {
   echo "==> Task definition $TASK_FAMILY"
   local env_json
   env_json="$(env_from_secret_json)"
-  echo "    injecting $(python3 -c 'import json,sys; print(len(json.loads(sys.argv[1])))' "$env_json") env keys from Secrets Manager"
+  echo "    injecting $(python3 -c "import json,sys; print(len(json.loads(sys.argv[1])))" "$env_json") env keys from Secrets Manager"
   # Write container def to a file (avoids shell-escaping secrets)
   python3 - "$ECR_URI" "$PORT" "$TASK_FAMILY" "$AWS_REGION" "$env_json" <<'PY' >/tmp/aether-chat-container.json
 import json, sys
@@ -319,7 +320,7 @@ print(json.dumps([{
     },
 }]))
 PY
-  aws ecs register-task-definition \
+  TASK_REV_ARN="$(aws ecs register-task-definition \
     --region "$AWS_REGION" \
     --family "$TASK_FAMILY" \
     --requires-compatibilities FARGATE \
@@ -328,19 +329,23 @@ PY
     --memory "512" \
     --execution-role-arn "$EXEC_ARN" \
     --task-role-arn "$TASK_ARN" \
-    --container-definitions file:///tmp/aether-chat-container.json >/dev/null
+    --runtime-platform "cpuArchitecture=X86_64,operatingSystemFamily=LINUX" \
+    --container-definitions file:///tmp/aether-chat-container.json \
+    --query 'taskDefinition.taskDefinitionArn' --output text)"
   rm -f /tmp/aether-chat-container.json
+  echo "    registered $TASK_REV_ARN"
 
   echo "==> ECS service $SERVICE_NAME"
   if aws ecs describe-services --region "$AWS_REGION" --cluster "$CLUSTER" --services "$SERVICE_NAME" \
       --query 'services[?status==`ACTIVE`].serviceName' --output text 2>/dev/null | grep -q "$SERVICE_NAME"; then
+    # Pin exact revision so we never keep an old secrets-based task def
     aws ecs update-service --region "$AWS_REGION" --cluster "$CLUSTER" --service "$SERVICE_NAME" \
-      --task-definition "$TASK_FAMILY" --force-new-deployment >/dev/null
+      --task-definition "$TASK_REV_ARN" --force-new-deployment >/dev/null
   else
     aws ecs create-service --region "$AWS_REGION" \
       --cluster "$CLUSTER" \
       --service-name "$SERVICE_NAME" \
-      --task-definition "$TASK_FAMILY" \
+      --task-definition "$TASK_REV_ARN" \
       --desired-count 1 \
       --launch-type FARGATE \
       --network-configuration "awsvpcConfiguration={subnets=[${ECS_SUBNETS}],securityGroups=[${TASK_SG}],assignPublicIp=ENABLED}" \
