@@ -19,6 +19,9 @@
 #
 set -euo pipefail
 
+# Avoid getting stuck in `less` on aws table/json output
+export AWS_PAGER=""
+
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
